@@ -6,10 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
   <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
   <link href="../css/style.css" rel="stylesheet" type="text/css">
-
+  
   <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-firestore.js"></script>
@@ -20,63 +19,96 @@
   <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
   <script src="../js/config.js" charset="utf-8"></script>
+  <style>
+    table { font-size: 11px; border-collapse:collapse; border:1px solid } 
+    table td, table th { border:1px solid; padding: 3px; } 
+    .dragging { background:#eee; color:#000 } 
+    .hovering { background:#ccc; color:#555 }
+  </style>
 </head>
 <body>
   <form id="commonForm" name="commonForm">
     <input type="hidden" name="pageType" id="pageType"> 
   </form>
-
-  <ul class="nav flex-column">
-    <li class="nav-item">
-      <a class="nav-link active" id="nav_dashboard" aria-current="page" href="index.html?pageType=D">DashBoard</a>
-    </li>
-    <li class="nav-item" >
-      <a class="nav-link" id="nav_project" href="index.html?pageType=P">Project</a>
-    </li>    
-  </ul>
   
-  <table id="our_table">
-    <tr>
-      <th>TODO</th>
-      <th>In-progress</th>
-      <th>QA</th>
-      <th>Acceptance</th>
-      <th>Done</th>
-    </tr>
-    <tr>
-      <td><div class="todo"></div></td>
-      <td><div class="inprogress"></div></td>
-      <td><div class="qa"></div></td>
-      <td><div class="acceptance"></div></td>
-      <td><div class="done"></div></td>
-    </tr>
-  </table>
-
-  <div class="container mt-3">
+  <div id="wrap" class="ddc-wrap open">
+    <header id="header" class="header open">
+      <h1 class="h1">
+        <a href="index.html" class="link-h1"><span>Nexways DDC</span></a>
+      </h1>
     
+      <nav class="nav">
+        <ul class="gnb-list">
+          <li class="first">
+            <a href="index.html?pageType=D" id="dashboard" class="link-gnb gnb-dashboard"><span class="text">대시보드</span></a>
+          </li>
+          <li class="first">
+            <a href="index.html?pageType=P" id="project" class="link-gnb gnb-dashboard"><span class="text">Project</span></a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <section class="main-wrap" role="main">
+      <article id="contents" class="contents-wrap">
+				<article class="contents-box">
+          <!-- Data list -->
+          <table class="table" id="content">
+            <thead>
+              <th width="20%">TODO</th>
+              <th width="20%">In-progress</th>
+              <th width="20%">QA</th>
+              <th width="20%">Acceptance</th>
+              <th width="20%">Done</th>
+            </thead>
+            <tbody id="tbody">
+            </tbody>
+          </table>
+          <!-- Data list -->
+        </article>
+      </article>
+    </section>
   </div>
   
+</body>
 <script>
   var pageType; // Page type
+    
+  function iniGrid(){
+    for(var i = 1; i <= 10; i++){
+      var html =`<tr>
+                  <td class="dropZone" id="TD_${i}"></td>
+                  <td class="dropZone" id="IP_${i}"></td>
+                  <td class="dropZone" id="QA_${i}"></td>
+                  <td class="dropZone" id="AC_${i}"></td>
+                  <td class="dropZone" id="DN_${i}"></td>
+                </tr>`;
+      
+      $("#tbody").append(html);
+    }
+  }
 
-  function buildProject(){
+  function buildProject(sStatus){
     const db = firebase.firestore();
-    var project = db.collection("Project").where("Status", "!=", "X");
+    var project;
+
+    if(sStatus != ""){
+      project = db.collection("Project").where("Status", "==", sStatus);
+    }else{
+      project = db.collection("Project").where("Status", "!=", "X");
+    }
 
     project.get().then((querySnapshot)=>{
       querySnapshot.forEach(doc => {
         console.log(doc.data());
         var snapshotData = doc.data();
         var createDate = snapshotData['CreateDate'].toDate().toLocaleString();
-        var html = `<div class="list"> 
-                    <div class="flex-grow-1 p-4 title">
-                      <p>${doc.id}</p>
-                      <p>${snapshotData['Title']}</p>
-                      <p>${snapshotData['Desc']}</p>
-                      <p>${snapshotData['CreateBy']}</p>
-                      <p>${createDate}</p>
-                    </div>
-                  </div>`;
+        var html = `<p>${doc.id}</p>
+                    <p>${snapshotData['Title']}</p>
+                    <p>${snapshotData['Desc']}</p>
+                    <p>${snapshotData['CreateBy']}</p>
+                    <p>${createDate}</p>`;
+
         $(".container").append(html);
       });
 
@@ -88,22 +120,39 @@
   function buildUserStory(){
     const db = firebase.firestore();
     var userStory = db.collection("UserStory");
+    var iRows = [0, 0, 0, 0, 0];
+    var sCell = "";
 
     userStory.get().then((querySnapshot)=>{
       querySnapshot.forEach(doc => {
         console.log(doc.data());
         var snapshotData = doc.data();
         var createDate = snapshotData['CreateDate'].toDate().toLocaleString();
-        var html = `<div class="list"> 
-                    <div class="flex-grow-1 p-4 title">
-                      <p>US-${doc.id}</p>
-                      <p>US-${snapshotData['Title']}</p>
-                      <p>US-${snapshotData['Desc']}</p>
-                      <p>US-${snapshotData['CreateBy']}</p>
-                      <p>US-${createDate}</p>
-                    </div>
-                  </div>`;
-        $(".todo").append(html);
+        var html = `<p>${doc.id}</p>
+                    <p>${snapshotData['Title']}</p>
+                    <p>${snapshotData['Desc']}</p>
+                    <p>${snapshotData['CreateBy']}</p>
+                    <p>${createDate}</p>`;
+        
+        switch(snapshotData['Status']){
+          case "T":
+            sCell = "#TD_" + (++iRows[0]);
+            break;            
+          case "I":
+            sCell = "#IP_" + (++iRows[1]);
+            break;
+          case "Q":
+            sCell = "#QA_" + (++iRows[2]);
+            break;
+          case "A":
+            sCell = "#AC_" + (++iRows[3]);
+            break;
+          case "X":
+            sCell = "#DN_" + (++iRows[4]);
+            break;
+        }
+        
+        $(sCell).append(html);
       });
 
     }).catch((err) =>{
@@ -111,25 +160,59 @@
     });
   }
   
-  pageType = $.urlParam("pageType");
-  pageType = (pageType == "" ? "D" : pageType);
-  document.getElementById('pageType').value = pageType;
-  
-  // Build project and user story
-  if(pageType == "D"){
-    // DashBoard
-    buildUserStory();
-  }else{
-    // Project
-    buildProject();  
-  }
+  function dataDropDown(){
+		
+		$('.dropZone').each(function(){
+			var dropZone = $(this);
+			var dropZoneID = dropZone.attr("ID");
+			
+			dropZone.on('dragenter',function(e){
+				e.stopPropagation();
+        e.preventDefault();
+				dropZone.css('background-color','#E3F2FC');
+			});
+
+			dropZone.on('dragleave',function(e){
+				e.stopPropagation();
+				e.preventDefault();
+				dropZone.css('background-color','#FFFFFF');
+			});
+
+			dropZone.on('dragover',function(e){
+				e.stopPropagation();
+				e.preventDefault();
+				dropZone.css('background-color','#E3F2FC');
+			});
+
+			dropZone.on('drop',function(e){
+				e.preventDefault();
+				dropZone.css('background-color','#FFFFFF');
+        console.log(e);
+			});
+
+		});
+	}
   
   $(function(){
-    // $("#our_table td").draggable();
-    $("#our_table div").droppable();
+    pageType = $.urlParam("pageType");
+    pageType = (pageType == "" ? "D" : pageType);
+    document.getElementById('pageType').value = pageType;
+    
+    // Init grid
+    iniGrid();
+
+    if(pageType == "P"){
+      // Project
+      buildProject("");  
+    }else{
+      // DashBoard
+      buildUserStory();
+    }
+
+    dataDropDown();
+    $("#content td").draggable();
+
   });
 
 </script>
-
-</body>
 </html>
